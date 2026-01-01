@@ -1,6 +1,7 @@
 import 'register_page.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -21,21 +22,47 @@ class _LoginPageState extends State<LoginPage> {
     final email = _email.text.trim();
     final pass = _password.text;
 
-    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
-      _show("Invalid email format");
+    if (email.isEmpty) {
+      _show("Email is required.");
       return;
     }
+
+    if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(email)) {
+      _show("Please enter a valid email address.");
+      return;
+    }
+
     if (pass.isEmpty) {
-      _show("Password cannot be empty");
+      _show("Password is required.");
       return;
     }
 
     setState(() => _loading = true);
-    await Future.delayed(const Duration(seconds: 1));
-    if (!mounted) return;
-    setState(() => _loading = false);
 
-    _show("Login successful 🎉");
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: email.toLowerCase(),
+        password: pass,
+      );
+      if (!mounted) return;
+      _show("Login successful 🎉");
+    } on FirebaseAuthException catch (e) {
+      switch (e.code) {
+        case 'user-not-found':
+          _show("No account found with this email.");
+          break;
+        case 'wrong-password':
+          _show("Incorrect password. Please try again.");
+          break;
+        case 'too-many-requests':
+          _show("Too many failed attempts. Please try again later.");
+          break;
+        default:
+          _show("Login failed. Please try again.");
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   void _show(String msg) {
@@ -201,40 +228,8 @@ class _LoginPageState extends State<LoginPage> {
                                 onTap: () {
                                   Navigator.push(
                                     context,
-                                    PageRouteBuilder(
-                                      transitionDuration: const Duration(
-                                        milliseconds: 700,
-                                      ),
-                                      pageBuilder: (_, __, ___) =>
-                                          RegisterPage(),
-                                      transitionsBuilder:
-                                          (_, animation, __, child) {
-                                            final curved = CurvedAnimation(
-                                              parent: animation,
-                                              curve: Curves.easeOutCubic,
-                                            );
-
-                                            final slide = Tween<Offset>(
-                                              begin: const Offset(0, 0.08),
-                                              end: Offset.zero,
-                                            ).animate(curved);
-
-                                            final scale = Tween<double>(
-                                              begin: 0.98,
-                                              end: 1.0,
-                                            ).animate(curved);
-
-                                            return FadeTransition(
-                                              opacity: curved,
-                                              child: SlideTransition(
-                                                position: slide,
-                                                child: ScaleTransition(
-                                                  scale: scale,
-                                                  child: child,
-                                                ),
-                                              ),
-                                            );
-                                          },
+                                    MaterialPageRoute(
+                                      builder: (_) => const RegisterPage(),
                                     ),
                                   );
                                 },
