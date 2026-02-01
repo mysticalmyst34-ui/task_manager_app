@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../services/auth_service.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -21,6 +22,8 @@ class _RegisterPageState extends State<RegisterPage> {
   bool _pressed = false;
   bool _passwordsMatch = true;
 
+  final AuthService _authService = AuthService();
+
   @override
   void initState() {
     super.initState();
@@ -28,19 +31,31 @@ class _RegisterPageState extends State<RegisterPage> {
     _confirm.addListener(_checkMatch);
   }
 
+  @override
+  void dispose() {
+    _first.dispose();
+    _last.dispose();
+    _email.dispose();
+    _pass.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
   void _checkMatch() {
+    if (!mounted) return;
     setState(() {
       _passwordsMatch = _confirm.text.isEmpty || _pass.text == _confirm.text;
     });
   }
 
   void _show(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), behavior: SnackBarBehavior.floating),
     );
   }
 
-  void _register() async {
+  Future<void> _register() async {
     if (_first.text.isEmpty || _last.text.isEmpty) {
       _show("Please enter your name");
       return;
@@ -49,8 +64,8 @@ class _RegisterPageState extends State<RegisterPage> {
       _show("Invalid email format");
       return;
     }
-    if (_pass.text.length < 10) {
-      _show("Password must be at least 10 characters");
+    if (_pass.text.length < 6) {
+      _show("Password must be at least 6 characters");
       return;
     }
     if (!_passwordsMatch) {
@@ -59,14 +74,23 @@ class _RegisterPageState extends State<RegisterPage> {
     }
 
     setState(() => _loading = true);
-    await Future.delayed(const Duration(seconds: 1));
+
+    final error = await _authService.register(
+      email: _email.text.trim(),
+      password: _pass.text,
+      name: '${_first.text.trim()} ${_last.text.trim()}',
+    );
+
     if (!mounted) return;
     setState(() => _loading = false);
 
-    _show("Account created successfully 🎉");
-    await Future.delayed(const Duration(milliseconds: 700));
-    if (!mounted) return;
-    Navigator.pop(context);
+    if (error != null) {
+      _show(error);
+    } else {
+      _show("Account created successfully 🎉");
+      await Future.delayed(const Duration(milliseconds: 700));
+      if (mounted) Navigator.pop(context);
+    }
   }
 
   @override
@@ -130,44 +154,14 @@ class _RegisterPageState extends State<RegisterPage> {
                       }),
                       const SizedBox(height: 18),
 
-                      TextField(
-                        controller: _confirm,
-                        obscureText: !_showConfirm,
-                        style: const TextStyle(color: Colors.white),
-                        decoration: InputDecoration(
-                          prefixIcon: const Icon(
-                            Icons.lock_outline,
-                            color: Colors.white,
-                          ),
-                          suffixIcon: IconButton(
-                            icon: Icon(
-                              _showConfirm
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: Colors.white70,
-                            ),
-                            onPressed: () =>
-                                setState(() => _showConfirm = !_showConfirm),
-                          ),
-                          hintText: "Confirm Password",
-                          hintStyle: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.9),
-                          ),
-                          enabledBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(
-                              color: _passwordsMatch
-                                  ? Colors.white
-                                  : errorColor,
-                            ),
-                          ),
-                          focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(
-                              color: _passwordsMatch
-                                  ? Colors.white
-                                  : errorColor,
-                            ),
-                          ),
-                        ),
+                      _passwordField(
+                        "Confirm Password",
+                        _confirm,
+                        _showConfirm,
+                        () => setState(() => _showConfirm = !_showConfirm),
+                        borderColor: _passwordsMatch
+                            ? Colors.white
+                            : errorColor,
                       ),
 
                       if (!_passwordsMatch)
@@ -232,10 +226,7 @@ class _RegisterPageState extends State<RegisterPage> {
                         onTap: () => Navigator.pop(context),
                         child: const Text(
                           "Back to Login",
-                          style: TextStyle(
-                            color: Colors.white70,
-                            decoration: TextDecoration.none,
-                          ),
+                          style: TextStyle(color: Colors.white70),
                         ),
                       ),
                     ],
@@ -271,8 +262,9 @@ class _RegisterPageState extends State<RegisterPage> {
     String label,
     TextEditingController controller,
     bool show,
-    VoidCallback toggle,
-  ) {
+    VoidCallback toggle, {
+    Color borderColor = Colors.white,
+  }) {
     return TextField(
       controller: controller,
       obscureText: !show,
@@ -288,11 +280,11 @@ class _RegisterPageState extends State<RegisterPage> {
         ),
         hintText: label,
         hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.9)),
-        enabledBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.white),
+        enabledBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: borderColor),
         ),
-        focusedBorder: const UnderlineInputBorder(
-          borderSide: BorderSide(color: Colors.white),
+        focusedBorder: UnderlineInputBorder(
+          borderSide: BorderSide(color: borderColor),
         ),
       ),
     );

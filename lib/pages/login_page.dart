@@ -1,7 +1,11 @@
+// ...existing code...
 import 'register_page.dart';
+import 'dashboard_page.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
+import '../services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -40,29 +44,36 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _loading = true);
 
     try {
-      await FirebaseAuth.instance.signInWithEmailAndPassword(
+      final cred = await FirebaseAuth.instance.signInWithEmailAndPassword(
         email: email.toLowerCase(),
         password: pass,
       );
+
       if (!mounted) return;
-      _show("Login successful 🎉");
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) =>
+              DashboardPage(userId: cred.user!.uid, onLogout: _handleLogout),
+        ),
+      );
     } on FirebaseAuthException catch (e) {
-      switch (e.code) {
-        case 'user-not-found':
-          _show("No account found with this email.");
-          break;
-        case 'wrong-password':
-          _show("Incorrect password. Please try again.");
-          break;
-        case 'too-many-requests':
-          _show("Too many failed attempts. Please try again later.");
-          break;
-        default:
-          _show("Login failed. Please try again.");
-      }
+      _show("Firebase says: ${e.code}");
     } finally {
       if (mounted) setState(() => _loading = false);
     }
+  }
+
+  Future<void> _handleLogout() async {
+    await AuthService().logout();
+    if (!mounted) return;
+
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginPage()),
+      (route) => false,
+    );
   }
 
   void _show(String msg) {
@@ -296,3 +307,4 @@ class _Nav extends StatelessWidget {
     );
   }
 }
+// ...existing code...
