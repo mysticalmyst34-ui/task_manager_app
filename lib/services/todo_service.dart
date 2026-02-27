@@ -2,31 +2,55 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/todo_model.dart';
 
 class TodoService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseFirestore _db = FirebaseFirestore.instance;
 
+  // READ
   Stream<List<Todo>> getTodos(String userId) {
-    return _firestore
+    return _db
         .collection('todos')
         .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs
-              .map((doc) => Todo.fromMap(doc.data(), doc.id))
-              .toList(),
-        );
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => Todo.fromMap(doc.id, doc.data()))
+              .toList();
+        });
   }
 
-  Future<void> addTodo(String userId, String title, String description) async {
-    await _firestore.collection('todos').add({
+  // CREATE
+  Future<void> addTodo({
+    required String userId,
+    required String title,
+    required String description,
+  }) async {
+    await _db.collection('todos').add({
       'userId': userId,
       'title': title,
       'description': description,
-      'createdAt': DateTime.now().toIso8601String(),
+      'isCompleted': false,
+      'createdAt': Timestamp.now(),
     });
   }
 
+  // UPDATE
+  Future<void> updateTodo({
+    required String id,
+    required String title,
+    required String description,
+  }) async {
+    await _db.collection('todos').doc(id).update({
+      'title': title,
+      'description': description,
+    });
+  }
+
+  // DELETE
   Future<void> deleteTodo(String id) async {
-    await _firestore.collection('todos').doc(id).delete();
+    await _db.collection('todos').doc(id).delete();
+  }
+
+  // TOGGLE CHECKBOX
+  Future<void> toggleTodoStatus(String id, bool current) async {
+    await _db.collection('todos').doc(id).update({'isCompleted': !current});
   }
 }

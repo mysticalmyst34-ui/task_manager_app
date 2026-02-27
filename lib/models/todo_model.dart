@@ -1,30 +1,35 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Todo {
   final String id;
+  final String userId;
   final String title;
   final String description;
-  final DateTime createdAt;
+  final bool isCompleted;
+  final String priority;
+  final DateTime? dueDate;
 
   Todo({
     required this.id,
+    required this.userId,
     required this.title,
     required this.description,
-    required this.createdAt,
+    required this.isCompleted,
+    required this.priority,
+    this.dueDate,
   });
 
-  factory Todo.fromMap(Map<String, dynamic> data, String id) {
+  factory Todo.fromMap(String id, Map<String, dynamic> data) {
     return Todo(
       id: id,
+      userId: data['userId'] ?? '',
       title: data['title'] ?? '',
       description: data['description'] ?? '',
-      createdAt: DateTime.parse(data['createdAt']),
+      isCompleted: data['isCompleted'] ?? false,
+      priority: data['priority'] ?? 'medium',
+      dueDate: data['dueDate'] is Timestamp
+          ? (data['dueDate'] as Timestamp).toDate()
+          : null,
     );
-  }
-
-  Map<String, dynamic> toMap() {
-    return {
-      'title': title,
-      'description': description,
-      'createdAt': createdAt.toIso8601String(),
-    };
   }
 }
